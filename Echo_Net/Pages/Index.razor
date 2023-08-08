@@ -1,0 +1,62 @@
+﻿@page "/"
+
+@using Models.Dto;
+@using Echo_Net.Services;
+@using Newtonsoft.Json;
+
+@inject IAudioPostService _audioPostService
+
+
+<PageTitle>Index</PageTitle>
+<div>    
+    <h1>Hello, world!</h1>
+</div>
+<div>
+    Welcome to your new app.
+</div>
+<div>
+    <input type="file" accept="audio/*" capture id="recorder" />
+</div>
+
+<!--
+    <audio controls style="width: 0px; height: 0px;">
+    <source src="001.mp3">
+</audio>
+
+@if(list is null || list.Count == 0 )
+{
+    <p>Loading</p>
+}
+else
+{
+    foreach(var item in list)
+    {
+        <div>
+            <p>@item.AudioId</p>
+            <p>@item.Title</p>
+            <p>@item.Description</p>
+            <p>@item.AudioUrl</p>
+            <p>@item.PostedDate</p>
+            <p>@item.OwnerId</p>
+        </div>
+    }
+}
+-->
+
+
+<SurveyPrompt Title="How is Blazor working for you?" />
+
+@code 
+{
+    int x = 0;
+    List<AudioPostDto> list = new();
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await _audioPostService.GetAllAudioPostsAsync<ResponseDto>();
+        if(response is not null && response.IsSuccess)
+        {
+            list = JsonConvert.DeserializeObject<List<AudioPostDto>>(Convert.ToString(response.Result));
+            return;
+        }
+    }    
+}
