@@ -58,6 +58,8 @@ else
 @code 
 {
     public const string FormatDateTimeStamp = "yyyy_MM_dd__HH_mm_ss_ffff";
+    string projectPath =
+                new DirectoryInfo(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)).Parent.Parent.Parent.FullName;
     string mUrl;
     string filename;
     bool mDisableRecordAudioStart;
@@ -151,8 +153,6 @@ else
         {
             byte[] audioData = Convert.FromBase64String(audioDataUrl.Split(",")[1]);
             string filePath = Path.Combine("data\\echos", filename + ".wav");
-            string projectPath =
-                new DirectoryInfo(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)).Parent.Parent.Parent.FullName;
             string fullPath = Path.Combine(projectPath, filePath);
             using (MemoryStream memoryStream = new MemoryStream(audioData))
             {
