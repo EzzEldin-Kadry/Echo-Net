@@ -2,21 +2,30 @@
 
 @using Models.Dto;
 @using Echo_Net.Services;
-@using Newtonsoft.Json;
 
 @inject IAudioPostService _audioPostService
+@inject IJSRuntime mJS
 
 
 <PageTitle>Index</PageTitle>
-<div>    
-    <h1>Hello, world!</h1>
-</div>
-<div>
-    Welcome to your new app.
-</div>
-<div>
-    <input type="file" accept="audio/*" capture id="recorder" />
-</div>
+
+
+<button @onclick="butRecordAudioStart_Click" class="btn btn-primary" disabled=@mDisableRecordAudioStart>Start Record</button>
+<button @onclick="butRecordAudioPause_Click" class="btn btn-primary" disabled=@mDisableRecordAudioPause>Pause</button>
+<button @onclick="butRecordAudioResume_Click" class="btn btn-primary" disabled=@mDisableRecordAudioResume>Resume</button>
+<button @onclick="butRecordAudioStop_Click" class="btn btn-primary" disabled=@mDisableRecordAudioStop>Stop</button>
+<button @onclick="butRecordAudioSave_Click" class="btn btn-primary" disabled=@mDisableRecordAudioSave>Post</button>
+<hr/>
+<audio controls src=@mUrl></audio>
+<hr />
+@if(mUrl is not null)
+{
+    <span>
+        <p>
+            @mUrl
+        </p>
+    </span>
+}
 
 <!--
     <audio controls style="width: 0px; height: 0px;">
@@ -48,15 +57,119 @@ else
 
 @code 
 {
-    int x = 0;
-    List<AudioPostDto> list = new();
+    public const string FormatDateTimeStamp = "yyyy_MM_dd__HH_mm_ss_ffff";
+    string mUrl;
+    string filename;
+    bool mDisableRecordAudioStart;
+    bool mDisableRecordAudioPause = true;
+    bool mDisableRecordAudioResume = true;
+    bool mDisableRecordAudioStop = true;
+    bool mDisableRecordAudioSave = true;
+
     protected override async Task OnInitializedAsync()
     {
-        var response = await _audioPostService.GetAllAudioPostsAsync<ResponseDto>();
-        if(response is not null && response.IsSuccess)
+        await base.OnInitializedAsync();
+        filename = "";
+    }
+
+    List<AudioPostDto> list = new();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(firstRender)
         {
-            list = JsonConvert.DeserializeObject<List<AudioPostDto>>(Convert.ToString(response.Result));
-            return;
+            //Start Recording Function
+            await mJS.InvokeVoidAsync("BlazorAudioRecorder.Initialize", 
+                    DotNetObjectReference.Create(this));
+
+            /*var response = await _audioPostService.GetAllAudioPostsAsync<ResponseDto>();
+            if(response is not null && response.IsSuccess)
+            {
+                list = JsonConvert
+                        .DeserializeObject<List<AudioPostDto>>(Convert.ToString(response.Result));
+                return;
+            }*/
         }
-    }    
+    }
+
+    void butRecordAudioStart_Click()
+    {
+        mUrl = "";
+        mDisableRecordAudioStart = true;
+        mDisableRecordAudioPause = false;
+        mDisableRecordAudioResume = true;
+        mDisableRecordAudioStop = false;
+        mDisableRecordAudioSave = true;
+        mJS.InvokeVoidAsync("BlazorAudioRecorder.StartRecord");
+    }
+
+    void butRecordAudioPause_Click()
+    {
+        mDisableRecordAudioStart = true;
+        mDisableRecordAudioPause = true;
+        mDisableRecordAudioResume = false;
+        mDisableRecordAudioStop = false;
+        mDisableRecordAudioSave = true;
+        mJS.InvokeVoidAsync("BlazorAudioRecorder.PauseRecord");
+    }
+
+    void butRecordAudioResume_Click()
+    {
+        mDisableRecordAudioStart = true;
+        mDisableRecordAudioPause = false;
+        mDisableRecordAudioResume = true;
+        mDisableRecordAudioStop = false;
+        mDisableRecordAudioSave = true;
+        mJS.InvokeVoidAsync("BlazorAudioRecorder.ResumeRecord");
+    }
+
+    void butRecordAudioStop_Click()
+    {
+        mDisableRecordAudioStart = false;
+        mDisableRecordAudioPause = true;
+        mDisableRecordAudioResume = true;
+        mDisableRecordAudioStop = true;
+        mDisableRecordAudioSave = false;
+        var stream = mJS.InvokeVoidAsync("BlazorAudioRecorder.StopRecord");
+        filename = "MyEcho_"+ (new Random()).Next(4652,46523158) + DateTimeStamp();
+    }
+
+    [JSInvokable]
+    public async Task OnAudioUrl(string vUrl)
+    {
+        mUrl = vUrl;
+        await InvokeAsync(() => StateHasChanged());
+    }
+    async Task butRecordAudioSave_Click()
+    {
+        await mJS.InvokeVoidAsync("BlazorAudioRecorder.getAudioDataFromBlobUrl");
+    }
+    
+    [JSInvokable]
+    public async Task OnAudioLoadRead(string audioDataUrl)
+    {
+        try
+        {
+            byte[] audioData = Convert.FromBase64String(audioDataUrl.Split(",")[1]);
+            string filePath = Path.Combine("data\\echos", filename + ".wav");
+            string projectPath =
+                new DirectoryInfo(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)).Parent.Parent.Parent.FullName;
+            string fullPath = Path.Combine(projectPath, filePath);
+            using (MemoryStream memoryStream = new MemoryStream(audioData))
+            {
+                using (FileStream fileStream = new FileStream(fullPath, FileMode.Create))
+                {
+                    await memoryStream.CopyToAsync(fileStream);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving audio file: {ex.Message}");
+        }
+    }
+    public static string DateTimeStamp()
+    {
+        var pOut = DateTime.Now.ToString(FormatDateTimeStamp);
+        return pOut;
+    }
 }

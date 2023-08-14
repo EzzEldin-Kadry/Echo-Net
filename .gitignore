@@ -1,5 +1,8 @@
 .vscode
 bin
 obj
+data
 *.sln
 *.txt
+.png
+.mp3

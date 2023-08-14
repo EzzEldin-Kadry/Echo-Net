@@ -13,6 +13,10 @@ builder.Services.AddHttpClient<IAudioPostService, AudioPostService>();
 Constants.AudioPostBase = builder.Configuration["ServiceUrls:AudioPostAPI"];
 builder.Services.AddScoped<IAudioPostService, AudioPostService>();
 
+builder.Services.AddServerSideBlazor().AddHubOptions(options => {
+    options.MaximumReceiveMessageSize = null;
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
