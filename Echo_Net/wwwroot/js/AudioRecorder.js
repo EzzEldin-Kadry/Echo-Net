@@ -23,7 +23,7 @@ var BlazorAudioRecorder = {};
             var pAudioBlob = new Blob(mAudioChunks, { type: "audio/wav" });
             blobObject = pAudioBlob;
             var pAudioUrl = URL.createObjectURL(pAudioBlob);
-            mCaller.invokeMethodAsync('OnAudioUrl', pAudioUrl);
+            mCaller.invokeMethodAsync('OnAudioUrlSent', pAudioUrl);
         });
         
         mAudioChunks = [];
@@ -45,14 +45,14 @@ var BlazorAudioRecorder = {};
     };
     
 
-    BlazorAudioRecorder.getAudioDataFromBlobUrl = async function () {
+    BlazorAudioRecorder.SendAudioDataFromBlobUrl = async function () {
         const reader = new FileReader();
         reader.readAsDataURL(blobObject);
         reader.addEventListener(
             "load",
             () => {
-                console.log(reader.result);
-                mCaller.invokeMethodAsync('OnAudioLoadRead', reader.result);
+                mCaller.invokeMethodAsync('OnAudioDataSent', reader.result);
+                mCaller.invokeMethodAsync('InitializeAudioRecorderData');
             },
             false
         );
