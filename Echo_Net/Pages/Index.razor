@@ -10,7 +10,7 @@
 <PageTitle>Index</PageTitle>
 
 
-<section id>
+<section>
     <audio controls src=@audioRecorderManager.audioBloblURL></audio>
     <hr />
     <button @onclick="RecordAudioStart_Click" class="btn btn-primary" 
@@ -84,13 +84,14 @@ else
                     DotNetObjectReference.Create(this));
             await InitializeAudioRecorderData();
             SetAudioRecorderUIElementsToDefault();
+            SetAudioDataDetailsToDefault();
 
-            //GetAudioPostsFromService();
+            
+            GetAudioPostsFromService();
         }
     }
-
-
-    async Task GetAudioPostsFromService()
+ 
+    async void GetAudioPostsFromService()
     {
         var response = await _audioPostService.GetAllAudioPostsAsync<ResponseDto>();
         if(response is not null && response.IsSuccess)
@@ -100,7 +101,6 @@ else
             return;
         }
     }
-    [JSInvokable]
     public async Task InitializeAudioRecorderData()
     {
         audioRecorderManager.audioBloblURL = string.Empty;
@@ -115,6 +115,10 @@ else
         audioRecorderManager.mDisableRecordAudioResume = true;
         audioRecorderManager.mDisableRecordAudioStop = true;
         audioRecorderManager.mDisableRecordAudioSave = true;
+    }
+    void SetAudioDataDetailsToDefault()
+    {
+        audioRecorderManager.audioDataBase64 = string.Empty;
     }
     void RecordAudioStart_Click()
     {
@@ -151,16 +155,19 @@ else
 
     void RecordAudioStop_Click()
     {
+        
+        BeforeSaveStateRecordAudio();
+        mJS.InvokeVoidAsync("BlazorAudioRecorder.StopRecord");
+        audioRecorderManager.audioFileName = "MyEcho_"+ (new Random()).Next() + Constants.DateTimeStamp();
+    }
+    void BeforeSaveStateRecordAudio()
+    {
         audioRecorderManager.mDisableRecordAudioStart = false;
         audioRecorderManager.mDisableRecordAudioPause = true;
         audioRecorderManager.mDisableRecordAudioResume = true;
         audioRecorderManager.mDisableRecordAudioStop = true;
         audioRecorderManager.mDisableRecordAudioSave = false;
-
-        mJS.InvokeVoidAsync("BlazorAudioRecorder.StopRecord");
-        audioRecorderManager.audioFileName = "MyEcho_"+ (new Random()).Next() + Constants.DateTimeStamp();
     }
-
     async Task RecordAudioSave_Click()
     {
         await mJS.InvokeVoidAsync("BlazorAudioRecorder.SendAudioDataFromBlobUrl");
@@ -172,34 +179,54 @@ else
         audioRecorderManager.audioBloblURL = vUrl;
         await InvokeAsync(() => StateHasChanged());
     }
-    
+
     [JSInvokable]
-    public async Task OnAudioDataSent(string audioDataUrl)
+    public void OnLoadAudioChunks(string audioChunk)
     {
+        audioRecorderManager.audioDataBase64 += audioChunk;
+    }
+    [JSInvokable]
+    public async Task OnAudioDataSent(int expectedLengthOfAudioData)
+    {
+        if(audioRecorderManager.audioDataBase64.Length != expectedLengthOfAudioData)
+        {
+            SetAudioDataDetailsToDefault();
+            await mJS.InvokeVoidAsync("alert", "Audio post corrupted");
+            BeforeSaveStateRecordAudio();
+            return;
+        }
         try
         {
-            byte[] audioData = Convert.FromBase64String(audioDataUrl.Split(",")[1]);
-            string filePath = Path.Combine(Constants.EchoesLocation, audioRecorderManager.audioFileName + audioRecorderManager.audioExtension);
+            byte[] audioData = Convert.FromBase64String(audioRecorderManager.audioDataBase64.Split(",")[1]);
+            string filePath = Path.Combine(Constants.EchoesLocation, 
+                audioRecorderManager.audioFileName + audioRecorderManager.audioExtension);
             string fullPath = Path.Combine(projectPath, filePath);
             using (MemoryStream memoryStream = new MemoryStream(audioData))
             {
                 using (FileStream fileStream = new FileStream(fullPath, FileMode.Create))
                 {
                     await memoryStream.CopyToAsync(fileStream);
+                    SetAudioDataDetailsToDefault();
+                    await InitializeAudioRecorderData();
+                    await mJS.InvokeVoidAsync("alert", "Audio record posted");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error saving audio file: {ex.Message}");
+            await mJS.InvokeVoidAsync("alert", $"Error posting audio post: {ex.Message}");
         }
     }
     
     struct AudioRecorderManager
     {
+
         public string audioBloblURL;
         public string audioFileName;
         public string audioExtension;
+
+        public string audioDataBase64;
+        
         public bool mDisableRecordAudioStart;
         public bool mDisableRecordAudioPause;
         public bool mDisableRecordAudioResume;

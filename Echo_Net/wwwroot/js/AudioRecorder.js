@@ -43,19 +43,22 @@ var BlazorAudioRecorder = {};
         mStream.getTracks().forEach(pTrack => pTrack.stop());
         mAudioChunks = [];
     };
-    
-
     BlazorAudioRecorder.SendAudioDataFromBlobUrl = async function () {
         const reader = new FileReader();
         reader.readAsDataURL(blobObject);
-        reader.addEventListener(
-            "load",
-            () => {
-                mCaller.invokeMethodAsync('OnAudioDataSent', reader.result);
-                mCaller.invokeMethodAsync('InitializeAudioRecorderData');
-            },
-            false
-        );
+        reader.addEventListener("load", () => {
+            HandleAudioUpload(reader);
+        }, false);
     };
-     
+
+    function HandleAudioUpload(reader) {
+        const audioData = reader.result;
+        const chunkSize = 30 * 1024; // Set the chunk size to 30KB
+        for (let i = 0; i < audioData.length; i += chunkSize) {
+          const chunk = audioData.slice(i, i + chunkSize);
+          mCaller.invokeMethodAsync('OnLoadAudioChunks', chunk);
+        }
+        mCaller.invokeMethodAsync('OnAudioDataSent', audioData.length);
+      };
+
 })();
