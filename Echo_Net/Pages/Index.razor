@@ -98,6 +98,7 @@ else
         {
             AudioPosts = Newtonsoft.Json.JsonConvert
                     .DeserializeObject<List<AudioPostDto>>(Convert.ToString(response.Result));
+            await InvokeAsync(() => StateHasChanged());
             return;
         }
     }
