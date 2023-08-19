@@ -5,6 +5,7 @@ namespace Echo_Net.Pages
 {
     public partial class Index
     {
+        AudioPostState audioPostState;
         string? projectPath;
         List<AudioPostDto>? AudioPosts { get; set; }
         AudioRecorderManager audioRecorderManager;
@@ -22,7 +23,6 @@ namespace Echo_Net.Pages
             {
                 await mJS.InvokeVoidAsync("BlazorAudioRecorder.Initialize", DotNetObjectReference.Create(this));
 
-                //Start Recording Function
                 GetAudioPostsFromService();
             }
         }
@@ -48,6 +48,7 @@ namespace Echo_Net.Pages
             audioRecorderManager.audioBloblURL = string.Empty;
             audioRecorderManager.audioFileName = string.Empty;
             audioRecorderManager.audioExtension = ".wav";
+            audioPostState = AudioPostState.NoPost;
         }
 
         void SetAudioRecorderUIElementsToDefault()
@@ -58,49 +59,6 @@ namespace Echo_Net.Pages
             audioRecorderManager.mDisableRecordAudioStop = true;
             audioRecorderManager.mDisableRecordAudioSave = true;
         }
-
-        void SetAudioDataDetailsToDefault()
-        {
-            audioRecorderManager.audioDataBase64 = string.Empty;
-        }
-
-        void RecordAudioStart_Click()
-        {
-            audioRecorderManager.mDisableRecordAudioStart = true;
-            audioRecorderManager.mDisableRecordAudioPause = false;
-            audioRecorderManager.mDisableRecordAudioResume = true;
-            audioRecorderManager.mDisableRecordAudioStop = false;
-            audioRecorderManager.mDisableRecordAudioSave = true;
-            mJS.InvokeVoidAsync("BlazorAudioRecorder.StartRecord");
-        }
-
-        void RecordAudioPause_Click()
-        {
-            audioRecorderManager.mDisableRecordAudioStart = true;
-            audioRecorderManager.mDisableRecordAudioPause = true;
-            audioRecorderManager.mDisableRecordAudioResume = false;
-            audioRecorderManager.mDisableRecordAudioStop = false;
-            audioRecorderManager.mDisableRecordAudioSave = true;
-            mJS.InvokeVoidAsync("BlazorAudioRecorder.PauseRecord");
-        }
-
-        void RecordAudioResume_Click()
-        {
-            audioRecorderManager.mDisableRecordAudioStart = true;
-            audioRecorderManager.mDisableRecordAudioPause = false;
-            audioRecorderManager.mDisableRecordAudioResume = true;
-            audioRecorderManager.mDisableRecordAudioStop = false;
-            audioRecorderManager.mDisableRecordAudioSave = true;
-            mJS.InvokeVoidAsync("BlazorAudioRecorder.ResumeRecord");
-        }
-
-        void RecordAudioStop_Click()
-        {
-            BeforeSaveStateRecordAudio();
-            mJS.InvokeVoidAsync("BlazorAudioRecorder.StopRecord");
-            audioRecorderManager.audioFileName = "MyEcho_" + (new Random()).Next() + Constants.DateTimeStamp();
-        }
-
         void BeforeSaveStateRecordAudio()
         {
             audioRecorderManager.mDisableRecordAudioStart = false;
@@ -110,11 +68,65 @@ namespace Echo_Net.Pages
             audioRecorderManager.mDisableRecordAudioSave = false;
         }
 
-        async Task RecordAudioSave_Click()
+        void SetAudioDataDetailsToDefault()
+        {
+            audioRecorderManager.audioDataBase64 = string.Empty;
+        }
+
+        void StartAudioRecord()
+        {
+            audioRecorderManager.mDisableRecordAudioStart = true;
+            audioRecorderManager.mDisableRecordAudioPause = false;
+            audioRecorderManager.mDisableRecordAudioResume = true;
+            audioRecorderManager.mDisableRecordAudioStop = false;
+            audioRecorderManager.mDisableRecordAudioSave = true;
+            mJS.InvokeVoidAsync("BlazorAudioRecorder.StartRecord");
+        }
+
+        void PauseAudioRecord()
+        {
+            audioRecorderManager.mDisableRecordAudioStart = true;
+            audioRecorderManager.mDisableRecordAudioPause = true;
+            audioRecorderManager.mDisableRecordAudioResume = false;
+            audioRecorderManager.mDisableRecordAudioStop = false;
+            audioRecorderManager.mDisableRecordAudioSave = true;
+            mJS.InvokeVoidAsync("BlazorAudioRecorder.PauseRecord");
+        }
+
+        void ResumeAudioRecord()
+        {
+            audioRecorderManager.mDisableRecordAudioStart = true;
+            audioRecorderManager.mDisableRecordAudioPause = false;
+            audioRecorderManager.mDisableRecordAudioResume = true;
+            audioRecorderManager.mDisableRecordAudioStop = false;
+            audioRecorderManager.mDisableRecordAudioSave = true;
+            mJS.InvokeVoidAsync("BlazorAudioRecorder.ResumeRecord");
+        }
+
+        void StopAudioRecord()
+        {
+            BeforeSaveStateRecordAudio();
+            mJS.InvokeVoidAsync("BlazorAudioRecorder.StopRecord");
+            audioRecorderManager.audioFileName = "MyEcho_" + (new Random()).Next() + Constants.DateTimeStamp();
+        }
+
+        async Task SaveAudioRecord()
         {
             await mJS.InvokeVoidAsync("BlazorAudioRecorder.SendAudioDataFromBlobUrl");
+            SetAudioDataDetailsToDefault();
             SetAudioRecorderUIElementsToDefault();
+            InitializeAudioRecorderData();
+            if(audioPostState == AudioPostState.FailedPost)
+            {
+                await mJS.InvokeVoidAsync("alert", "Failed to post!");
+                audioPostState = AudioPostState.NoPost;
+                return;
+            }
+            StateHasChanged();
+            await mJS.InvokeVoidAsync("alert", "Success post");
+            audioPostState = AudioPostState.NoPost;
         }
+        
 
         public void Dispose()
         {
@@ -129,7 +141,7 @@ namespace Echo_Net.Pages
         }
 
         [JSInvokable]
-        public void OnLoadAudioChunks(string audioChunk)
+        public void LoadAudioChunks(string audioChunk)
         {
             audioRecorderManager.audioDataBase64 += audioChunk;
         }
@@ -139,31 +151,28 @@ namespace Echo_Net.Pages
         {
             if (audioRecorderManager.audioDataBase64.Length != expectedLengthOfAudioData)
             {
-                SetAudioDataDetailsToDefault();
-                await mJS.InvokeVoidAsync("alert", "Audio post corrupted");
-                BeforeSaveStateRecordAudio();
+                audioPostState = AudioPostState.FailedPost;
                 return;
             }
-
             try
             {
                 byte[] audioData = Convert.FromBase64String(audioRecorderManager.audioDataBase64.Split(",")[1]);
-                string filePath = Path.Combine(Constants.EchoesLocation, audioRecorderManager.audioFileName + audioRecorderManager.audioExtension);
+                string filePath = Path.Combine(Constants.EchoesLocation, 
+                    audioRecorderManager.audioFileName + audioRecorderManager.audioExtension);
                 string fullPath = Path.Combine(projectPath, filePath);
                 using (MemoryStream memoryStream = new MemoryStream(audioData))
                 {
                     using (FileStream fileStream = new FileStream(fullPath, FileMode.Create))
                     {
                         await memoryStream.CopyToAsync(fileStream);
-                        SetAudioDataDetailsToDefault();
-                        InitializeAudioRecorderData();
-                        await mJS.InvokeVoidAsync("alert", "Audio record posted");
+                        audioPostState = AudioPostState.SuccessPost;
                     }
                 }
             }
             catch (Exception ex)
             {
                 await mJS.InvokeVoidAsync("alert", $"Error posting audio post: {ex.Message}");
+                audioPostState = AudioPostState.FailedPost;
             }
         }
 
@@ -181,4 +190,12 @@ namespace Echo_Net.Pages
             public bool mDisableRecordAudioStop;
             public bool mDisableRecordAudioSave;
     }
+
+    enum AudioPostState
+    {
+        NoPost,
+        SuccessPost,
+        FailedPost
+    }
+
 }

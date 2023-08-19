@@ -14,23 +14,23 @@
 <section>
     <audio controls src=@audioRecorderManager.audioBloblURL></audio>
     <hr />
-    <button @onclick="RecordAudioStart_Click" class="btn btn-primary" 
+    <button @onclick="StartAudioRecord" class="btn btn-primary" 
         disabled=@audioRecorderManager.mDisableRecordAudioStart>
         Start Record
     </button>
-    <button @onclick="RecordAudioPause_Click" class="btn btn-primary" 
+    <button @onclick="PauseAudioRecord" class="btn btn-primary" 
         disabled=@audioRecorderManager.mDisableRecordAudioPause>
         Pause
     </button>
-    <button @onclick="RecordAudioResume_Click" class="btn btn-primary" 
+    <button @onclick="ResumeAudioRecord" class="btn btn-primary" 
         disabled=@audioRecorderManager.mDisableRecordAudioResume>
         Resume
     </button>
-    <button @onclick="RecordAudioStop_Click" class="btn btn-primary" 
+    <button @onclick="StopAudioRecord" class="btn btn-primary" 
         disabled=@audioRecorderManager.mDisableRecordAudioStop>
         Stop
     </button>
-    <button @onclick="RecordAudioSave_Click" class="btn btn-primary" 
+    <button @onclick="SaveAudioRecord" class="btn btn-primary" 
         disabled=@audioRecorderManager.mDisableRecordAudioSave>
         Post
     </button>
