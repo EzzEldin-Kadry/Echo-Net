@@ -36,16 +36,6 @@
     </button>
 </section>
 
-@if(audioRecorderManager.audioBloblURL is not null)
-{
-    <span>
-        <p>
-            @audioRecorderManager.audioBloblURL
-        </p>
-    </span>
-}
-
-
 @if(AudioPosts is null || AudioPosts.Count == 0 )
 {
     <p>Loading...</p>
@@ -55,13 +45,14 @@ else
     foreach(var item in AudioPosts)
     {
         <div>
-            <p>@item.AudioId</p>
-            <p>@item.Title</p>
-            <p>@item.Description</p>
-            <p>@item.AudioUrl</p>
-            <p>@item.PostedDate</p>
-            <p>@item.OwnerId</p>
+            <p>AudioId: @item.AudioId</p>
+            <p>Title: @item.Title</p>
+            <p>Description: @item.Description</p>
+            <p>AudioUrl: @item.AudioUrl</p>
+            <p>PostedDate: @item.PostedDate</p>
+            <p>OwnerId: @item.OwnerId</p>
         </div>
+        <hr />
     }
 }
 

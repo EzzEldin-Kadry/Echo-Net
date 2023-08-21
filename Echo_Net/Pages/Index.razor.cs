@@ -5,8 +5,8 @@ namespace Echo_Net.Pages
 {
     public partial class Index
     {
-        AudioPostState audioPostState;
         string? projectPath;
+        AudioPostState audioPostState;
         List<AudioPostDto>? AudioPosts { get; set; }
         AudioRecorderManager audioRecorderManager;
         protected override Task OnInitializedAsync()
@@ -22,8 +22,8 @@ namespace Echo_Net.Pages
             if (firstRender)
             {
                 await mJS.InvokeVoidAsync("BlazorAudioRecorder.Initialize", DotNetObjectReference.Create(this));
-
-                GetAudioPostsFromService();
+                await GetAudioPostsFromService();
+                await InvokeAsync(() => StateHasChanged());
             }
         }
         void InitializeAudioRecorder()
@@ -31,16 +31,29 @@ namespace Echo_Net.Pages
             InitializeAudioRecorderData();
             SetAudioRecorderUIElementsToDefault();
             SetAudioDataDetailsToDefault();
+            
         }
-        async void GetAudioPostsFromService()
+        async Task GetAudioPostsFromService()
         {
             var response = await _audioPostService.GetAllAudioPostsAsync<ResponseDto>();
             if (response is not null && response.IsSuccess)
             {
-                AudioPosts = Newtonsoft.Json.JsonConvert.DeserializeObject<List<AudioPostDto>>(Convert.ToString(response.Result));
-                await InvokeAsync(() => StateHasChanged());
+                AudioPosts = Newtonsoft.Json.JsonConvert
+                    .DeserializeObject<List<AudioPostDto>>(Convert.ToString(response.Result));
                 return;
             }
+        }
+        async Task<bool> CreateAudioPostToService(string audioURL, string title = "dummyTitle", string description = "dumyDescription")
+        {
+            var audioPostDto = new AudioPostDto(title, description, audioURL);
+            var response = await _audioPostService.CreateAudioPostAsync<ResponseDto>(audioPostDto);
+            if (response is not null && response.IsSuccess)
+            {
+                AudioPosts.Add(audioPostDto);
+                await InvokeAsync(() => StateHasChanged());
+                return true;
+            }
+            return false;
         }
 
         public void InitializeAudioRecorderData()
@@ -108,23 +121,12 @@ namespace Echo_Net.Pages
             BeforeSaveStateRecordAudio();
             mJS.InvokeVoidAsync("BlazorAudioRecorder.StopRecord");
             audioRecorderManager.audioFileName = "MyEcho_" + (new Random()).Next() + Constants.DateTimeStamp();
+            StateHasChanged();
         }
 
         async Task SaveAudioRecord()
         {
             await mJS.InvokeVoidAsync("BlazorAudioRecorder.SendAudioDataFromBlobUrl");
-            SetAudioDataDetailsToDefault();
-            SetAudioRecorderUIElementsToDefault();
-            InitializeAudioRecorderData();
-            if(audioPostState == AudioPostState.FailedPost)
-            {
-                await mJS.InvokeVoidAsync("alert", "Failed to post!");
-                audioPostState = AudioPostState.NoPost;
-                return;
-            }
-            StateHasChanged();
-            await mJS.InvokeVoidAsync("alert", "Success post");
-            audioPostState = AudioPostState.NoPost;
         }
         
 
@@ -132,12 +134,12 @@ namespace Echo_Net.Pages
         {
             mJS.InvokeVoidAsync("BlazorAudioRecorder.StopRecord");
         }
-
+    
         [JSInvokable]
-        public async Task OnAudioUrlSent(string vUrl)
+        public void OnAudioUrlSent(string vUrl)
         {
             audioRecorderManager.audioBloblURL = vUrl;
-            await InvokeAsync(() => StateHasChanged());
+            StateHasChanged();
         }
 
         [JSInvokable]
@@ -173,7 +175,36 @@ namespace Echo_Net.Pages
             {
                 await mJS.InvokeVoidAsync("alert", $"Error posting audio post: {ex.Message}");
                 audioPostState = AudioPostState.FailedPost;
+                await InvokeAsync(() => StateHasChanged());
             }
+        }
+
+        [JSInvokable]
+        public async Task OnAudioSentFinish()
+        {
+            if(audioPostState == AudioPostState.NoPost)
+            {
+                await mJS.InvokeVoidAsync("alert", "Something went wrong!");
+                return;
+            }
+            if(audioPostState == AudioPostState.FailedPost)
+            {
+                await mJS.InvokeVoidAsync("alert", "Failed to upload audio record!");
+                InitializeAudioRecorder();
+                await InvokeAsync(() => StateHasChanged());
+                return;
+            }
+            bool isResponseTrue = await CreateAudioPostToService(audioRecorderManager.audioFileName);
+            if(!isResponseTrue)
+            {
+                await mJS.InvokeVoidAsync("alert", "Failed to create audio post!");
+                InitializeAudioRecorder();
+                await InvokeAsync(() => StateHasChanged());
+                return;
+            }
+            await mJS.InvokeVoidAsync("alert", "Successful post");
+            InitializeAudioRecorder();
+            await InvokeAsync(() => StateHasChanged());
         }
 
 
@@ -184,6 +215,7 @@ namespace Echo_Net.Pages
             public string audioFileName;
             public string audioExtension;
             public string audioDataBase64;
+            
             public bool mDisableRecordAudioStart;
             public bool mDisableRecordAudioPause;
             public bool mDisableRecordAudioResume;

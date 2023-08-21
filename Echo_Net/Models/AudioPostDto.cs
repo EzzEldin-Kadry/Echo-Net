@@ -13,5 +13,14 @@ namespace Echo_Net.Models.Dto
         public string? AudioUrl { get; set; }
         public string? OwnerId {get; set;}
         public DateTime PostedDate { get; set; }
+        public AudioPostDto(string? title, string? description, string? audioUrl)
+        {
+            AudioId = Guid.NewGuid().ToString();
+            Title = title;
+            Description = description;
+            AudioUrl = audioUrl;
+            OwnerId = Guid.NewGuid().ToString();
+            PostedDate = DateTime.Now;
+        }
     }
 }
