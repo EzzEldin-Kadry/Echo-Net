@@ -5,6 +5,7 @@
 
 @inject IAudioPostService _audioPostService
 @inject IJSRuntime mJS
+@inject IWebHostEnvironment Environment
 
 @implements IDisposable;
 
@@ -12,8 +13,10 @@
 
 
 <section>
-    <audio controls src=@audioRecorderManager.audioBloblURL></audio>
-    <hr />
+    <div>
+        <audio controls src=@audioRecorderManager.audioBloblURL></audio>
+    </div>
+    
     <button @onclick="StartAudioRecord" class="btn btn-primary" 
         disabled=@audioRecorderManager.mDisableRecordAudioStart>
         Start Record
@@ -34,11 +37,20 @@
         disabled=@audioRecorderManager.mDisableRecordAudioSave>
         Post
     </button>
+    <hr />
 </section>
 
-@if(AudioPosts is null || AudioPosts.Count == 0 )
+
+<p>
+   webRootPath: @Environment.WebRootPath
+</p>
+@if (AudioPosts is null)
 {
     <p>Loading...</p>
+}
+else if (AudioPosts.Count == 0)
+{
+    <p>No posts to show :( </p>
 }
 else
 {
@@ -48,7 +60,11 @@ else
             <p>AudioId: @item.AudioId</p>
             <p>Title: @item.Title</p>
             <p>Description: @item.Description</p>
-            <p>AudioUrl: @item.AudioUrl</p>
+            <div>
+                <audio 
+                    controls src="@AudioPostDto.ConstructFilePath(item.AudioUrl)">
+                </audio>
+            </div>
             <p>PostedDate: @item.PostedDate</p>
             <p>OwnerId: @item.OwnerId</p>
         </div>

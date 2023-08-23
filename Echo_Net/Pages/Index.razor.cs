@@ -5,15 +5,11 @@ namespace Echo_Net.Pages
 {
     public partial class Index
     {
-        string? projectPath;
         AudioPostState audioPostState;
         List<AudioPostDto>? AudioPosts { get; set; }
         AudioRecorderManager audioRecorderManager;
         protected override Task OnInitializedAsync()
         {  
-            projectPath = new DirectoryInfo(Path.GetDirectoryName(
-                    System.Reflection.Assembly.GetExecutingAssembly().Location))
-                        .Parent.Parent.Parent.FullName;
             InitializeAudioRecorder();
             return base.OnInitializedAsync();
         }
@@ -28,7 +24,7 @@ namespace Echo_Net.Pages
         }
         void InitializeAudioRecorder()
         {
-            InitializeAudioRecorderData();
+            SetAudioManagerAndPostStateToDefault();
             SetAudioRecorderUIElementsToDefault();
             SetAudioDataDetailsToDefault();
             
@@ -56,11 +52,10 @@ namespace Echo_Net.Pages
             return false;
         }
 
-        public void InitializeAudioRecorderData()
+        public void SetAudioManagerAndPostStateToDefault()
         {
             audioRecorderManager.audioBloblURL = string.Empty;
             audioRecorderManager.audioFileName = string.Empty;
-            audioRecorderManager.audioExtension = ".wav";
             audioPostState = AudioPostState.NoPost;
         }
 
@@ -159,9 +154,8 @@ namespace Echo_Net.Pages
             try
             {
                 byte[] audioData = Convert.FromBase64String(audioRecorderManager.audioDataBase64.Split(",")[1]);
-                string filePath = Path.Combine(Constants.EchoesLocation, 
-                    audioRecorderManager.audioFileName + audioRecorderManager.audioExtension);
-                string fullPath = Path.Combine(projectPath, filePath);
+                string filePath = AudioPostDto.ConstructFilePath(audioRecorderManager.audioFileName);
+                string fullPath = Path.Combine(Environment.WebRootPath, filePath);
                 using (MemoryStream memoryStream = new MemoryStream(audioData))
                 {
                     using (FileStream fileStream = new FileStream(fullPath, FileMode.Create))
@@ -175,7 +169,6 @@ namespace Echo_Net.Pages
             {
                 await mJS.InvokeVoidAsync("alert", $"Error posting audio post: {ex.Message}");
                 audioPostState = AudioPostState.FailedPost;
-                await InvokeAsync(() => StateHasChanged());
             }
         }
 
@@ -213,7 +206,6 @@ namespace Echo_Net.Pages
     {
             public string audioBloblURL;
             public string audioFileName;
-            public string audioExtension;
             public string audioDataBase64;
             
             public bool mDisableRecordAudioStart;
@@ -221,6 +213,8 @@ namespace Echo_Net.Pages
             public bool mDisableRecordAudioResume;
             public bool mDisableRecordAudioStop;
             public bool mDisableRecordAudioSave;
+
+            public IWebHostEnvironment hostEnvironment;
     }
 
     enum AudioPostState

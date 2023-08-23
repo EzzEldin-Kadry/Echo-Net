@@ -6,8 +6,11 @@ namespace Echo_Net
     public static class Constants
     {
         private const string FormatDateTimeStamp = "yyyy_MM_dd__HH_mm_ss_ffff";
-        public const string EchoesLocation = "data\\echos";
+        public const string AudioExtension = ".wav";
+        public const string EchoesLocation = "data\\echoes";
         public static string AudioPostBase { get; set; } = "";
+
+
         public enum APIType
         {
             GET,

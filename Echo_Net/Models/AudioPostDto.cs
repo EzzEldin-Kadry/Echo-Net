@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Echo_Net.Models.Dto
@@ -21,6 +22,12 @@ namespace Echo_Net.Models.Dto
             AudioUrl = audioUrl;
             OwnerId = Guid.NewGuid().ToString();
             PostedDate = DateTime.Now;
+        }
+        public static string ConstructFilePath(string fileName)
+        {
+            string filePath = Path.Combine(Constants.EchoesLocation, 
+                    fileName + Constants.AudioExtension);
+            return filePath;
         }
     }
 }
